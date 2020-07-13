@@ -427,7 +427,8 @@ void PlayerPage::init(VideoMetadata videoMetadata, StorageData storageData,
     QObject::connect(audioOnlyShortcut, SIGNAL(triggered()), this, SLOT(onAudioOnlyShortcut()));
     QObject::connect(videoShortcut, SIGNAL(triggered()), this, SLOT(onVideoShortcut()));
     QObject::connect(forward10Shortcut, SIGNAL(triggered()), this, SLOT(onForward10ButtonClick()));
-    QObject::connect(backward10Shortcut, SIGNAL(triggered()), this, SLOT(onBackward10ButtonClick()));
+    QObject::connect(backward10Shortcut, SIGNAL(triggered()), this,
+            SLOT(onBackward10ButtonClick()));
 
     QObject::connect(PlaylistVideoProxy::getInstance(), SIGNAL(added(PlaylistVideoModel*)), this,
             SLOT(onPlaylistVideoAdded(PlaylistVideoModel*)));
@@ -523,12 +524,16 @@ void PlayerPage::onCloseInfoContainerClick()
 
 void PlayerPage::onBackward10ButtonClick()
 {
-    playerContext->skipXSecondsBackward(10);
+    if (progressSlider->isEnabled()) {
+        playerContext->skipXSecondsBackward(10);
+    }
 }
 
 void PlayerPage::onForward10ButtonClick()
 {
-    playerContext->skipXSecondsForward(10);
+    if (progressSlider->isEnabled()) {
+        playerContext->skipXSecondsForward(10);
+    }
 }
 
 void PlayerPage::onMediaStateChanged(bb::multimedia::MediaState::Type state)
