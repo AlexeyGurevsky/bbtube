@@ -226,6 +226,8 @@ void YoutubeClient::onGetHtmlFinished()
         for (int i = 0; i < storageData.instances.count(); i++) {
             if (storageData.instances[i].cipher != "") {
                 loadJs = true;
+
+                break;
             }
         }
 

@@ -17,7 +17,8 @@ ScriptData ScriptParser::parse(QString script)
     cipherFunctionTextRegExp.indexIn(script);
     QString cipherFunctionText = cipherFunctionTextRegExp.capturedTexts()[0];
     QStringList cipherAlgorithmsList;
-    QRegExp cipherAlgorithmsListRegExp("[a-zA-Z0-9]{2}\\.[a-zA-Z0-9]{2}(\\([a-z],\\d*\\)|\\([a-z]\\))");
+    QRegExp cipherAlgorithmsListRegExp(
+            "[\\$a-zA-Z0-9]{2}\\.[a-zA-Z0-9]{2}(\\([a-z],\\d*\\)|\\([a-z]\\))");
     int pos = 0;
     while (pos >= 0) {
         pos = cipherAlgorithmsListRegExp.indexIn(cipherFunctionText, pos);
@@ -28,6 +29,10 @@ ScriptData ScriptParser::parse(QString script)
     }
 
     QString cipherObjectName = cipherAlgorithmsList[0].left(cipherAlgorithmsList[0].indexOf('.'));
+    if (cipherObjectName[0] == '$') {
+        cipherObjectName = '\\' + cipherObjectName;
+    }
+
     QRegExp cipherObjectDefinitionRegExp("var " + cipherObjectName + "=\\{(.|\\n)*\\};");
     cipherObjectDefinitionRegExp.setMinimal(true);
     cipherObjectDefinitionRegExp.indexIn(script);
