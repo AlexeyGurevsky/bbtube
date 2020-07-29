@@ -7,10 +7,14 @@
 
 ScriptData ScriptParser::parse(QString script)
 {
-    QRegExp cipherFunctionNameRegExp("[a-zA-Z]*\\(decodeURIComponent\\([a-z]\\)\\),[a-z]\\.set");
+    QRegExp cipherFunctionNameRegExp("[\\$a-zA-Z]*\\(decodeURIComponent\\([a-z]\\)\\),[a-z]\\.set");
     cipherFunctionNameRegExp.indexIn(script);
     QString cipherFunctionCall = cipherFunctionNameRegExp.capturedTexts()[0];
     QString cipherFunctionName = cipherFunctionCall.left(cipherFunctionCall.indexOf('('));
+
+    if (cipherFunctionName[0] == '$') {
+        cipherFunctionName = '\\' + cipherFunctionName;
+    }
 
     QRegExp cipherFunctionTextRegExp(cipherFunctionName + "=function\\([a-z]\\)\\{.*\\}");
     cipherFunctionTextRegExp.setMinimal(true);
