@@ -256,7 +256,7 @@ public:
         SingleVideoMetadata data;
 
         data.videoId = (*map)["videoId"].toString();
-        data.title = (*map)["title"].toMap()["simpleText"].toString();
+        data.title = getTitleFromRuns((*map)["title"].toMap()["runs"].toList());
         data.dateUploadedAgo = (*map)["publishedTimeText"].toMap()["simpleText"].toString();
         data.shortViewsCount = (*map)["shortViewCountText"].toMap()["simpleText"].toString();
         data.lengthText =
