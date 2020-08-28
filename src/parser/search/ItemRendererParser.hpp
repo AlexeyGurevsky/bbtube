@@ -256,7 +256,15 @@ public:
         SingleVideoMetadata data;
 
         data.videoId = (*map)["videoId"].toString();
-        data.title = getTitleFromRuns((*map)["title"].toMap()["runs"].toList());
+
+        QVariantMap titleMap = (*map)["title"].toMap();
+
+        if (titleMap.contains("simpleText")) {
+            data.title = titleMap["simpleText"].toString();
+        } else {
+            data.title = getTitleFromRuns(titleMap["runs"].toList());
+        }
+
         data.dateUploadedAgo = (*map)["publishedTimeText"].toMap()["simpleText"].toString();
         data.shortViewsCount = (*map)["shortViewCountText"].toMap()["simpleText"].toString();
         data.lengthText =
