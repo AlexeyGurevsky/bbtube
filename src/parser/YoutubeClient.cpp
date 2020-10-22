@@ -275,11 +275,11 @@ void YoutubeClient::onSearchFinished()
     }
 
     QString response = QString(reply->readAll());
-    QString configKey = "window[\"ytInitialData\"] =";
+    QString configKey = "var ytInitialData = ";
     int startOfConfig = response.indexOf(configKey);
-    int endOfConfig = response.indexOf("window[\"ytInitialPlayerResponse\"]", startOfConfig);
+    int endOfConfig = response.indexOf("};", startOfConfig);
     QString json = response.mid(startOfConfig + configKey.length(),
-            endOfConfig - startOfConfig - configKey.length()).trimmed();
+            endOfConfig + 1 - startOfConfig - configKey.length()).trimmed();
 
     SearchData searchData;
     ItemRendererParser::populateSearchData(&searchData, &json);
