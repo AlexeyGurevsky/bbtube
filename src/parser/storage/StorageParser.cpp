@@ -56,7 +56,6 @@ void StorageParser::parseFromJsonInternal(StorageData *storageData,
         } else if (format.contains("signatureCipher")) {
             video.cipher = format["signatureCipher"].toString();
         }
-
         storageData->instances.append(video);
     }
 

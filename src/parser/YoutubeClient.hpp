@@ -54,6 +54,7 @@ private:
     void search(QString text);
     void parse(QString videoId);
     QNetworkRequest prepareRequest(QString url);
+    QString getJson(QString response);
     void onGetBaseJsFinished(QNetworkReply *reply);
 };
 

@@ -167,17 +167,11 @@ void YoutubeClient::onGetHtmlFinished()
     }
 
     QString response = QString(reply->readAll());
-
-    int scriptIndex = response.indexOf("name=\"player_ias/base\"");
-    int jsUrlStart = response.left(scriptIndex).lastIndexOf("src=\"") + 5;
+    int scriptIndex = response.indexOf("src=\"/s/player/");
+    int jsUrlStart = scriptIndex + 5;
     int jsUrlEnd = response.indexOf('"', jsUrlStart);
     QString baseJsUrl = "https://www.youtube.com" + response.mid(jsUrlStart, jsUrlEnd - jsUrlStart);
-
-    QString configKey = "window[\"ytInitialData\"] =";
-    int startOfConfig = response.indexOf(configKey);
-    int endOfConfig = response.indexOf("window[\"ytInitialPlayerResponse\"]", startOfConfig);
-    QString json = response.mid(startOfConfig + configKey.length(),
-            endOfConfig - startOfConfig - configKey.length()).trimmed();
+    QString json = getJson(response);
 
     VideoMetadata videoMetadata;
     ItemRendererParser::populateVideoMetadata(&videoMetadata, &json);
@@ -191,31 +185,41 @@ void YoutubeClient::onGetHtmlFinished()
 
     StorageData storageData;
 
-    configKey = "ytplayer.config =";
-    startOfConfig = response.indexOf(configKey);
+    QString configKey = "ytplayer.config =";
+    int startOfConfig = response.indexOf(configKey);
     if (startOfConfig >= 0) {
-        endOfConfig = response.indexOf(";ytplayer.load", startOfConfig);
+        int endOfConfig = response.indexOf(";ytplayer.load", startOfConfig);
         json = response.mid(startOfConfig + configKey.length(),
                 endOfConfig - startOfConfig - configKey.length()).trimmed();
 
         StorageParser::parseFromHtml(&storageData, &json);
     } else {
-        QEventLoop loop;
-        QNetworkRequest getVideoInfoRequest(
-                "https://www.youtube-nocookie.com/get_video_info?video_id="
-                        + videoMetadata.video.videoId);
-        QNetworkReply *getVideoInfoReply = ApplicationUI::networkManager->get(getVideoInfoRequest);
-        QObject::connect(getVideoInfoReply, SIGNAL(finished()), &loop, SLOT(quit()));
-        loop.exec();
+        configKey = "{\"responseContext\":";
+        startOfConfig = response.indexOf(configKey);
+        if (startOfConfig >= 0) {
+            int endOfConfig = response.indexOf("};", startOfConfig);
+            json = response.mid(startOfConfig, endOfConfig + 1 - startOfConfig).trimmed();
 
-        QString getVideoInfoResponse = QString(getVideoInfoReply->readAll());
-        QStringList split = getVideoInfoResponse.split('&');
-        for (int i = 0; i < split.length(); i++) {
-            if (split[i].startsWith("player_response=")) {
-                json = QUrl::fromPercentEncoding(
-                        split[i].mid(QString("player_response=").length()).toUtf8());
+            StorageParser::parseFromJson(&storageData, &json);
+        } else {
+            QEventLoop loop;
+            QNetworkRequest getVideoInfoRequest(
+                    "https://www.youtube-nocookie.com/get_video_info?video_id="
+                            + videoMetadata.video.videoId);
+            QNetworkReply *getVideoInfoReply = ApplicationUI::networkManager->get(
+                    getVideoInfoRequest);
+            QObject::connect(getVideoInfoReply, SIGNAL(finished()), &loop, SLOT(quit()));
+            loop.exec();
 
-                StorageParser::parseFromJson(&storageData, &json);
+            QString getVideoInfoResponse = QString(getVideoInfoReply->readAll());
+            QStringList split = getVideoInfoResponse.split('&');
+            for (int i = 0; i < split.length(); i++) {
+                if (split[i].startsWith("player_response=")) {
+                    json = QUrl::fromPercentEncoding(
+                            split[i].mid(QString("player_response=").length()).toUtf8());
+
+                    StorageParser::parseFromJson(&storageData, &json);
+                }
             }
         }
     }
@@ -275,11 +279,7 @@ void YoutubeClient::onSearchFinished()
     }
 
     QString response = QString(reply->readAll());
-    QString configKey = "var ytInitialData = ";
-    int startOfConfig = response.indexOf(configKey);
-    int endOfConfig = response.indexOf("};", startOfConfig);
-    QString json = response.mid(startOfConfig + configKey.length(),
-            endOfConfig + 1 - startOfConfig - configKey.length()).trimmed();
+    QString json = getJson(response);
 
     SearchData searchData;
     ItemRendererParser::populateSearchData(&searchData, &json);
@@ -340,11 +340,7 @@ void YoutubeClient::onChannelFinished()
     }
 
     QString response = QString(reply->readAll());
-    QString configKey = "window[\"ytInitialData\"] =";
-    int startOfConfig = response.indexOf(configKey);
-    int endOfConfig = response.indexOf("window[\"ytInitialPlayerResponse\"]", startOfConfig);
-    QString json = response.mid(startOfConfig + configKey.length(),
-            endOfConfig - startOfConfig - configKey.length()).trimmed();
+    QString json = getJson(response);
 
     ChannelPageData channelData;
 
@@ -403,11 +399,7 @@ void YoutubeClient::onRecommendedFinished()
     }
 
     QString response = QString(reply->readAll());
-    QString configKey = "window[\"ytInitialData\"] =";
-    int startOfConfig = response.indexOf(configKey);
-    int endOfConfig = response.indexOf("window[\"ytInitialPlayerResponse\"]", startOfConfig);
-    QString json = response.mid(startOfConfig + configKey.length(),
-            endOfConfig - startOfConfig - configKey.length()).trimmed();
+    QString json = getJson(response);
 
     RecommendedData recommendedData;
     RecommendedPageParser::parse(&recommendedData, &json);
@@ -447,11 +439,7 @@ void YoutubeClient::onTrendingFinished()
     }
 
     QString response = QString(reply->readAll());
-    QString configKey = "window[\"ytInitialData\"] =";
-    int startOfConfig = response.indexOf(configKey);
-    int endOfConfig = response.indexOf("window[\"ytInitialPlayerResponse\"]", startOfConfig);
-    QString json = response.mid(startOfConfig + configKey.length(),
-            endOfConfig - startOfConfig - configKey.length()).trimmed();
+    QString json = getJson(response);
 
     TrendingData trendingData;
     TrendingPageParser::parse(&trendingData, &json);
@@ -467,4 +455,25 @@ QNetworkRequest YoutubeClient::prepareRequest(QString url)
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:74.0) Gecko/20100101 Firefox/74.0");
 
     return request;
+}
+
+QString YoutubeClient::getJson(QString response)
+{
+    QString json;
+    QString configKey = "var ytInitialData = ";
+    int startOfConfig = response.indexOf(configKey);
+
+    if (startOfConfig >= 0) {
+        int endOfConfig = response.indexOf("};", startOfConfig);
+        json = response.mid(startOfConfig + configKey.length(),
+                endOfConfig + 1 - startOfConfig - configKey.length()).trimmed();
+    } else {
+        configKey = "window[\"ytInitialData\"] =";
+        int startOfConfig = response.indexOf(configKey);
+        int endOfConfig = response.indexOf("window[\"ytInitialPlayerResponse\"]", startOfConfig);
+        json = response.mid(startOfConfig + configKey.length(),
+                endOfConfig - startOfConfig - configKey.length()).trimmed();
+    }
+
+    return json;
 }
