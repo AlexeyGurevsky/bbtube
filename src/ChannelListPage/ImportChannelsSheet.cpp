@@ -18,7 +18,7 @@
 #include <bb/system/InvokeRequest>
 #include <bb/system/InvokeManager>
 #include <bb/system/InvokeTargetReply>
-#include <bb/data/XmlDataAccess>
+#include <bb/data/JsonDataAccess>
 
 ImportChannelsSheet::ImportChannelsSheet() :
         BaseSheet()
@@ -36,11 +36,12 @@ ImportChannelsSheet::ImportChannelsSheet() :
 
     container->add(Label::create().text("Steps:").topMargin(0));
     container->add(
-            Label::create().text("1. Make sure you're signed in to YouTube in the browser").multiline(
+            Label::create().text(
+                    "1. Export your YouTube subscriptions from Google Takeout on a PC").multiline(
                     true).topMargin(0));
     container->add(
             Label::create().text(
-                    "2. Download your subscriptions by tapping the action on the bar below. Save the file as a .txt file, for example, subscriptions.txt").multiline(
+                    "2. Find subscriptions.json, change its extension to .txt and transfer subscriptions.txt to the phone").multiline(
                     true).topMargin(0));
     container->add(Label::create().text("3. Open the file and copy its contents").topMargin(0));
     container->add(Label::create().text("4. Paste the contents into the area below").topMargin(0));
@@ -72,7 +73,8 @@ ImportChannelsSheet::ImportChannelsSheet() :
     downloadActionItem->setTitle("Download");
 
     content->addAction(importActionItem, bb::cascades::ActionBarPlacement::Signature);
-    content->addAction(downloadActionItem, bb::cascades::ActionBarPlacement::OnBar);
+    // hide this action for now
+    // content->addAction(downloadActionItem, bb::cascades::ActionBarPlacement::OnBar);
 
     QObject::connect(importActionItem, SIGNAL(triggered()), this, SLOT(onImportActionItemClick()));
     QObject::connect(downloadActionItem, SIGNAL(triggered()), this,
@@ -89,25 +91,24 @@ void ImportChannelsSheet::onImportActionItemClick()
         overlay->setVisible(true);
         importActionItem->setEnabled(false);
 
-        bb::data::XmlDataAccess xda;
-        QVariantList list = xda.loadFromBuffer(textArea->text(), "/body/outline/outline").value<
-                QVariantList>();
+        bb::data::JsonDataAccess jda;
+        QVariantList list = jda.loadFromBuffer(textArea->text()).toList();
 
         if (list.count() > 0) {
             DbHelper::transaction();
 
             for (int i = 0; i < list.count(); i++) {
-                QVariantMap feed = list[i].toMap();
+                QVariantMap channelMap = list[i].toMap()["snippet"].toMap();
                 ChannelListItemModel channel;
 
-                channel.channelId = QUrl(feed["xmlUrl"].toString()).queryItemValue("channel_id");
+                channel.channelId = channelMap["resourceId"].toMap()["channelId"].toString();
                 channel.dateAdded = QDateTime::currentDateTimeUtc().toTime_t();
                 channel.dateLastActivity = 0;
                 channel.dateLastVisited = 0;
                 channel.lastVideoId = "";
                 channel.lastVideoTitle = "";
-                channel.thumbnailUrl = "";
-                channel.title = feed["title"].toString();
+                channel.thumbnailUrl = channelMap["thumbnails"].toMap()["default"].toMap()["url"].toString();
+                channel.title = channelMap["title"].toString();
 
                 if (!ChannelListProxy::getInstance()->contains(channel.channelId)) {
                     DbHelper::createChannel(&channel);
@@ -132,7 +133,8 @@ void ImportChannelsSheet::onDownloadActionItemClick()
     bb::system::InvokeRequest request;
     request.setAction("bb.action.OPEN");
     request.setTarget("sys.browser");
-    request.setUri("https://www.youtube.com/subscription_manager?action_takeout=1");
+    request.setUri(
+            "https://takeout.google.com/takeout/custom/youtube?continue=https://myaccount.google.com/yourdata/youtube?hl=en_GB&authuser=0");
 
     bb::system::InvokeTargetReply* reply = (new bb::system::InvokeManager)->invoke(request);
     reply->deleteLater();

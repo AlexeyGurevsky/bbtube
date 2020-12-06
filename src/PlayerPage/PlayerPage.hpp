@@ -72,6 +72,7 @@ private slots:
     void onVideoChannelActionItemClick();
     void onOpenVideoInBrowserActionItemClick();
     void onCopyVideoLinkActionItemClick();
+    void onCopyStreamUrlActionItemClick();
     void onAddToFavoritesActionItemClick();
     void onAddToWatchLaterActionItemClick();
     void addToHistory();

@@ -138,6 +138,7 @@ public:
     void setCcLanguage(QString language);
     void setClosedCaptionUrl(QUrl url);
     void resetClosedCaptionUrl();
+    QString getSourceUrl();
 
     void setPlaylist(int playlistId, QList<QString> playlistSequence);
     int getPlaylistId();

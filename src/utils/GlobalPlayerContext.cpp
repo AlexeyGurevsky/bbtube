@@ -208,6 +208,10 @@ bb::multimedia::MediaError::Type GlobalPlayerContext::changeQuality(QString url)
 
     return bb::multimedia::MediaError::None;
 }
+QString GlobalPlayerContext::getSourceUrl()
+{
+    return mediaPlayer->sourceUrl().toString();
+}
 void GlobalPlayerContext::pause()
 {
     mediaPlayer->pause();

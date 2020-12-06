@@ -323,6 +323,11 @@ void PlayerPage::init(VideoMetadata videoMetadata, StorageData storageData,
     this->addAction(openVideoInBrowserActionItem, bb::cascades::ActionBarPlacement::InOverflow);
     this->addAction(copyVideoLinkActionItem, bb::cascades::ActionBarPlacement::InOverflow);
 
+    bb::cascades::ActionItem *copyStreamUrlActionItem = bb::cascades::ActionItem::create().parent(this);
+    copyStreamUrlActionItem->setImageSource(QString("asset:///images/ic_copy_link.png"));
+    copyStreamUrlActionItem->setTitle("Copy Stream URL");
+    this->addAction(copyStreamUrlActionItem, bb::cascades::ActionBarPlacement::InOverflow);
+
     QObject::connect(youtubeClient, SIGNAL(channelDataReceived(ChannelPageData)), this,
             SLOT(onChannelDataReceived(ChannelPageData)));
     QObject::connect(foreignWindowControl, SIGNAL(boundToWindowChanged(bool)), this,
@@ -386,6 +391,8 @@ void PlayerPage::init(VideoMetadata videoMetadata, StorageData storageData,
             SLOT(onAddToFavoritesActionItemClick()));
     QObject::connect(addToWatchLaterActionItem, SIGNAL(triggered()), this,
             SLOT(onAddToWatchLaterActionItemClick()));
+    QObject::connect(copyStreamUrlActionItem, SIGNAL(triggered()), this,
+            SLOT(onCopyStreamUrlActionItemClick()));
 
     QObject::connect(closeButton, SIGNAL(clicked()), this, SLOT(onCloseInfoContainerClick()));
     QObject::connect(backward10Button, SIGNAL(clicked()), this, SLOT(onBackward10ButtonClick()));
@@ -1256,6 +1263,20 @@ void PlayerPage::onOpenVideoInBrowserActionItemClick()
 void PlayerPage::onCopyVideoLinkActionItemClick()
 {
     ActionItemService::copyVideoLink(videoMetadata.video.videoId);
+}
+
+void PlayerPage::onCopyStreamUrlActionItemClick()
+{
+    bb::system::Clipboard clipboard;
+    QString link = playerContext->getSourceUrl();
+    int expire = QUrl(link).queryItemValue("expire").toInt();
+    int now = QDateTime::currentDateTimeUtc().toTime_t();
+
+    clipboard.insert(QString("text/plain"), link.toUtf8());
+
+    UIUtils::toastInfo(
+            QString("The link was copied to Clipboard. It expires in %1 hour(s)").arg(
+                    (expire - now) / 3600));
 }
 
 void PlayerPage::onAddToFavoritesActionItemClick()
