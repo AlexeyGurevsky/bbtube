@@ -17,6 +17,8 @@
 #include <bb/system/InvokeRequest>
 #include <bb/cascades/TabbedPane>
 
+#include <audio/audio_manager_event.h>
+
 namespace bb
 {
     namespace cascades
@@ -27,21 +29,23 @@ namespace bb
 
 class QTranslator;
 
-class ApplicationUI : public QObject
+class ApplicationUI: public QObject
 {
     Q_OBJECT
 public:
     ApplicationUI();
-    virtual ~ApplicationUI() {}
+    virtual ~ApplicationUI()
+    {
+    }
     static QNetworkAccessManager *networkManager;
     static GlobalPlayerContext *playerContext;
     static AppSettings *appSettings;
-    static BaseSheet *activeSheet;
-private slots:
+    static BaseSheet *activeSheet;private slots:
     void onSystemLanguageChanged();
     void onInvoke(const bb::system::InvokeRequest& request);
     void onActiveTabChanged(bb::cascades::Tab*);
     void onAboutToQuit();
+    void processAudioManagerEvents();
 private:
     QTranslator* m_pTranslator;
     bb::cascades::LocaleHandler* m_pLocaleHandler;

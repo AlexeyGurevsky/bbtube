@@ -29,7 +29,7 @@
 int RecommendedPage::pageSize = 12;
 
 RecommendedPage::RecommendedPage(bb::cascades::NavigationPane *navigationPane) :
-        BasePage(navigationPane)
+        BasePage(navigationPane), isLoaded(false)
 {
     bb::cascades::Container *container = new bb::cascades::Container();
     container->setVerticalAlignment(bb::cascades::VerticalAlignment::Fill);
@@ -55,7 +55,7 @@ RecommendedPage::RecommendedPage(bb::cascades::NavigationPane *navigationPane) :
     QObject::connect(youtubeClient, SIGNAL(recommendedDataReceived(RecommendedData)), this,
             SLOT(onRecommendedDataReceived(RecommendedData)));
     QObject::connect(youtubeClient, SIGNAL(channelDataReceived(ChannelPageData)), this,
-                SLOT(onChannelDataReceived(ChannelPageData)));
+            SLOT(onChannelDataReceived(ChannelPageData)));
     QObject::connect(videoList, SIGNAL(triggered(QVariantList)), this,
             SLOT(onListItemClick(QVariantList)));
     QObject::connect(listProvider, SIGNAL(showMore(QVariantList)), this,
@@ -74,7 +74,6 @@ RecommendedPage::RecommendedPage(bb::cascades::NavigationPane *navigationPane) :
             SLOT(onRefreshActionItemClick()));
 
     overlay->setVisible(true);
-    youtubeClient->recommended();
 }
 
 void RecommendedPage::onMetadataReceived(VideoMetadata videoMetadata, StorageData storageData)
@@ -184,5 +183,13 @@ void RecommendedPage::onChannelDataReceived(ChannelPageData data)
 void RecommendedPage::onRefreshActionItemClick()
 {
     overlay->setVisible(true);
+    isLoaded = true;
     youtubeClient->recommended();
+}
+
+void RecommendedPage::lazyLoad()
+{
+    if (!isLoaded) {
+        onRefreshActionItemClick();
+    }
 }

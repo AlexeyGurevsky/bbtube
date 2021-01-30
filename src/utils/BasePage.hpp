@@ -41,6 +41,7 @@ public:
     virtual void playVideoFromOutside(QString url);
     virtual void playVideoFromPlaylist(QString url);
     virtual void setVideoToPlayer();
+    virtual void lazyLoad();
 
     bb::cascades::Container *getTitleContainer();
     void setTitle(QString title);

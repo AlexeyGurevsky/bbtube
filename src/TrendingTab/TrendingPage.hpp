@@ -39,6 +39,9 @@ private:
     CustomListView *videoList;
     bb::cascades::SegmentedControl *segmented;
     QMap<int, QListDataModel<VideoListItemModel*>*> modelsMap;
+    bool isLoaded;
+
+    void lazyLoad();
 public:
     TrendingPage(bb::cascades::NavigationPane *navigationPane);
     virtual ~TrendingPage()

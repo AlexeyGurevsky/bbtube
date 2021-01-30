@@ -20,6 +20,13 @@
 #include <bb/system/InvokeRequest>
 #include <bb/cascades/TabbedPane>
 
+#include <QFuture>
+#include <QFutureWatcher>
+#include <bb/multimedia/MediaState>
+
+static bool audio_manager_events_required = false;
+static audio_manager_event_context_t *event_context;
+
 using namespace bb::cascades;
 
 QNetworkAccessManager* ApplicationUI::networkManager = 0;
@@ -66,6 +73,7 @@ ApplicationUI::ApplicationUI() :
     root->add(trendingTab);
 
     BaseTab *activeTab;
+    bool isLazyLoad = false;
 
     if (appSettings->defaultTab() == "Search") {
         activeTab = browseTab;
@@ -75,8 +83,10 @@ ApplicationUI::ApplicationUI() :
         activeTab = playlistsTab;
     } else if (appSettings->defaultTab() == "Recommended") {
         activeTab = recommendedTab;
+        isLazyLoad = true;
     } else if (appSettings->defaultTab() == "Trending") {
         activeTab = trendingTab;
+        isLazyLoad = true;
     }
 
     root->setActiveTab(activeTab);
@@ -93,7 +103,18 @@ ApplicationUI::ApplicationUI() :
 
     PlaybackTimeoutHandler *playbackTimeoutHandler = new PlaybackTimeoutHandler(this);
 
+    qRegisterMetaType<bb::multimedia::MediaState::Type>("bb::multimedia::MediaState::Type");
+    audio_manager_events_required = true;
+    QFuture<void> *_future = new QFuture<void>;
+    QFutureWatcher<void> *_watcher = new QFutureWatcher<void>;
+    *_future = QtConcurrent::run(this, &ApplicationUI::processAudioManagerEvents);
+    _watcher->setFuture(*_future);
+
     QObject::connect(Application::instance(), SIGNAL(aboutToQuit()), this, SLOT(onAboutToQuit()));
+
+    if (isLazyLoad) {
+        activeTab->activePage()->lazyLoad();
+    }
 }
 
 void ApplicationUI::onSystemLanguageChanged()
@@ -151,9 +172,31 @@ void ApplicationUI::onActiveTabChanged(bb::cascades::Tab* tab)
     BasePage *page = activeTab->activePage();
 
     page->setVideoToPlayer();
+    page->lazyLoad();
+}
+
+void ApplicationUI::processAudioManagerEvents()
+{
+    void * event_params;
+    audio_manager_event_type_t event_type;
+
+    audio_manager_get_event_context(&event_context);
+    audio_manager_add_routing_change_event(event_context);
+
+    while (audio_manager_events_required) {
+        audio_manager_get_event(event_context, &event_type, &event_params);
+        audio_manager_dispatch_event(event_context, event_type, event_params);
+
+        if (playerContext->getMediaState() == bb::multimedia::MediaState::Started) {
+            playerContext->pause();
+        }
+    }
 }
 
 void ApplicationUI::onAboutToQuit()
 {
     playerContext->setViewedPercent();
+
+    audio_manager_events_required = false;
+    audio_manager_release_event_context(&event_context);
 }

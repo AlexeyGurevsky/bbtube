@@ -71,6 +71,9 @@ void BasePage::setVideoToPlayer()
         miniPlayer->setVideo();
     }
 }
+void BasePage::lazyLoad()
+{
+}
 
 bb::cascades::Container* BasePage::getTitleContainer()
 {

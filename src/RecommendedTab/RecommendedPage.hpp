@@ -34,6 +34,9 @@ private:
     RecommendedData recommendedData;
     CustomListView *videoList;
     static int pageSize;
+    bool isLoaded;
+
+    void lazyLoad();
 private slots:
     void onShowMore(QVariantList);
 public:

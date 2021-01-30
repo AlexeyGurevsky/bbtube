@@ -29,7 +29,7 @@
 #include <QVariantList>
 
 TrendingPage::TrendingPage(bb::cascades::NavigationPane *navigationPane) :
-        BasePage(navigationPane)
+        BasePage(navigationPane), isLoaded(false)
 {
     bb::cascades::Container *container = new bb::cascades::Container();
     container->setVerticalAlignment(bb::cascades::VerticalAlignment::Fill);
@@ -74,7 +74,6 @@ TrendingPage::TrendingPage(bb::cascades::NavigationPane *navigationPane) :
             SLOT(onRefreshActionItemClick()));
 
     overlay->setVisible(true);
-    youtubeClient->trending();
 }
 
 void TrendingPage::onMetadataReceived(VideoMetadata videoMetadata, StorageData storageData)
@@ -106,6 +105,48 @@ void TrendingPage::onPlayAudioOnlyActionItemClick(QVariantList indexPath)
     onListItemClick(indexPath);
 }
 
+void TrendingPage::onChannelActionItemClick(QVariantList indexPath)
+{
+    VideoListItemModel *item = videoList->dataModel()->data(indexPath).value<VideoListItemModel*>();
+    overlay->setVisible(true);
+    youtubeClient->channel(item->channelId);
+}
+
+void TrendingPage::onChannelDataReceived(ChannelPageData data)
+{
+    navigationPane->push(new ChannelPage(data, this->navigationPane));
+    overlay->setVisible(false);
+    videoList->setEnabled(true);
+}
+
+void TrendingPage::onRefreshActionItemClick()
+{
+    overlay->setVisible(true);
+    modelsMap.clear();
+    isLoaded = true;
+    youtubeClient->trending();
+}
+
+void TrendingPage::onSegmentedSelectedIndexChanged(int index)
+{
+    if (modelsMap.contains(index)) {
+        videoList->setDataModel(modelsMap[index]);
+        videoList->requestFocus();
+
+        return;
+    }
+
+    overlay->setVisible(true);
+    youtubeClient->trending(categories[index - 1].categoryKey);
+}
+
+void TrendingPage::lazyLoad()
+{
+    if (!isLoaded) {
+        onRefreshActionItemClick();
+    }
+}
+
 void TrendingPage::onTrendingDataReceived(TrendingData data)
 {
     QListDataModel<VideoListItemModel*> *model = new QListDataModel<VideoListItemModel*>();
@@ -132,38 +173,4 @@ void TrendingPage::onTrendingDataReceived(TrendingData data)
         QObject::connect(segmented, SIGNAL(selectedIndexChanged(int)), this,
                 SLOT(onSegmentedSelectedIndexChanged(int)));
     }
-}
-
-void TrendingPage::onChannelActionItemClick(QVariantList indexPath)
-{
-    VideoListItemModel *item = videoList->dataModel()->data(indexPath).value<VideoListItemModel*>();
-    overlay->setVisible(true);
-    youtubeClient->channel(item->channelId);
-}
-
-void TrendingPage::onChannelDataReceived(ChannelPageData data)
-{
-    navigationPane->push(new ChannelPage(data, this->navigationPane));
-    overlay->setVisible(false);
-    videoList->setEnabled(true);
-}
-
-void TrendingPage::onRefreshActionItemClick()
-{
-    overlay->setVisible(true);
-    modelsMap.clear();
-    youtubeClient->trending();
-}
-
-void TrendingPage::onSegmentedSelectedIndexChanged(int index)
-{
-    if (modelsMap.contains(index)) {
-        videoList->setDataModel(modelsMap[index]);
-        videoList->requestFocus();
-
-        return;
-    }
-
-    overlay->setVisible(true);
-    youtubeClient->trending(categories[index - 1].categoryKey);
 }
