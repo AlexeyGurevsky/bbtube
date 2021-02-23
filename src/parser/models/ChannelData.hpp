@@ -18,6 +18,7 @@ public:
     QString clientVersion;
     QList<SingleVideoMetadata> videos;
     QString ctoken;
+    QString apiKey;
 };
 
 #endif /* ChannelData_HPP_ */

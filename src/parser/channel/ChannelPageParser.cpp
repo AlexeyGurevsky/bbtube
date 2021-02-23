@@ -70,38 +70,50 @@ void ChannelPageParser::parse(ChannelPageData *channelData, QString *json)
     QVariantList videosList = gridRendererMap["items"].toList();
 
     for (int i = 0; i < videosList.count(); i++) {
-        QVariantMap videoMap = videosList[i].toMap()["gridVideoRenderer"].toMap();
-        SingleVideoMetadata video = ItemRendererParser::getFromChannelVideo(&videoMap);
+        QVariantMap item = videosList[i].toMap();
 
-        video.channelId = channelData->channelId;
-        video.channelTitle = channelData->title;
+        if (item.contains("gridVideoRenderer")) {
+            QVariantMap videoMap = item["gridVideoRenderer"].toMap();
+            SingleVideoMetadata video = ItemRendererParser::getFromChannelVideo(&videoMap);
 
-        channelData->videos.append(video);
-    }
+            video.channelId = channelData->channelId;
+            video.channelTitle = channelData->title;
 
-    if (gridRendererMap.contains("continuations")) {
-        channelData->ctoken =
-                gridRendererMap["continuations"].toList()[0].toMap()["nextContinuationData"].toMap()["continuation"].toString();
+            channelData->videos.append(video);
+        } else if (item.contains("continuationItemRenderer")) {
+            channelData->ctoken =
+                    item["continuationItemRenderer"].toMap()["continuationEndpoint"].toMap()["continuationCommand"].toMap()["token"].toString();
+        }
     }
 }
 
 void ChannelPageParser::parseNextBatch(ChannelPageData *channelData, QString *json)
 {
     bb::data::JsonDataAccess jda;
-    QVariantMap map = jda.loadFromBuffer(*json).toList()[1].toMap();
-    QVariantMap gridMap =
-            map["response"].toMap()["continuationContents"].toMap()["gridContinuation"].toMap();
-    QVariantList videosList = gridMap["items"].toList();
+    QVariantList receivedActions =
+            jda.loadFromBuffer(*json).toMap()["onResponseReceivedActions"].toList();
 
-    if (gridMap.contains("continuations")) {
-        channelData->ctoken =
-                gridMap["continuations"].toList()[0].toMap()["nextContinuationData"].toMap()["continuation"].toString();
+    if (receivedActions.count() == 0) {
+        return;
     }
 
-    for (int i = 0; i < videosList.count(); i++) {
-        QVariantMap videoMap = videosList[i].toMap()["gridVideoRenderer"].toMap();
-        SingleVideoMetadata video = ItemRendererParser::getFromChannelVideo(&videoMap);
+    QVariantList videosList =
+            receivedActions[0].toMap()["appendContinuationItemsAction"].toMap()["continuationItems"].toList();
 
-        channelData->videos.append(video);
+    for (int i = 0; i < videosList.count(); i++) {
+        QVariantMap item = videosList[i].toMap();
+
+        if (item.contains("gridVideoRenderer")) {
+            QVariantMap videoMap = item["gridVideoRenderer"].toMap();
+            SingleVideoMetadata video = ItemRendererParser::getFromChannelVideo(&videoMap);
+
+            video.channelId = channelData->channelId;
+            video.channelTitle = channelData->title;
+
+            channelData->videos.append(video);
+        } else if (item.contains("continuationItemRenderer")) {
+            channelData->ctoken =
+                    item["continuationItemRenderer"].toMap()["continuationEndpoint"].toMap()["continuationCommand"].toMap()["token"].toString();
+        }
     }
 }

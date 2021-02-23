@@ -114,13 +114,19 @@ void YoutubeClient::channel(QString channelId, QString originalChannelId)
 
 void YoutubeClient::channelVideosNextBatch(ChannelPageData *channelData)
 {
+    qDebug() << channelData->apiKey << channelData->clientVersion << channelData->ctoken;
     QNetworkRequest request = prepareRequest(
-            "https://www.youtube.com/browse_ajax?ctoken=" + channelData->ctoken + "&continuation="
-                    + channelData->ctoken);
+            "https://www.youtube.com/youtubei/v1/browse?key=" + channelData->apiKey);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader("X-YouTube-Client-Name", "1");
     request.setRawHeader("X-YouTube-Client-Version", channelData->clientVersion.toUtf8());
 
-    QNetworkReply *reply = ApplicationUI::networkManager->get(request);
+    QByteArray data =
+            QString(
+                    "{\"context\":{\"client\":{\"clientName\":\"WEB\",\"clientVersion\":\"%1\"}},\"continuation\":\"%2\"}").arg(
+                    channelData->clientVersion, channelData->ctoken).toUtf8();
+
+    QNetworkReply *reply = ApplicationUI::networkManager->post(request, data);
     QObject::connect(reply, SIGNAL(finished()), this, SLOT(onChannelVideosNextBatchFinished()));
 }
 
@@ -134,13 +140,19 @@ void YoutubeClient::recommended()
 
 void YoutubeClient::recommendedNextBatch(RecommendedData *recommendedData)
 {
+    qDebug() << recommendedData->apiKey << recommendedData->clientVersion << recommendedData->ctoken;
     QNetworkRequest request = prepareRequest(
-            "https://www.youtube.com/browse_ajax?ctoken=" + recommendedData->ctoken
-                    + "&continuation=" + recommendedData->ctoken);
+            "https://www.youtube.com/youtubei/v1/browse?key=" + recommendedData->apiKey);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
     request.setRawHeader("X-YouTube-Client-Name", "1");
     request.setRawHeader("X-YouTube-Client-Version", recommendedData->clientVersion.toUtf8());
 
-    QNetworkReply *reply = ApplicationUI::networkManager->get(request);
+    QByteArray data =
+            QString(
+                    "{\"context\":{\"client\":{\"clientName\":\"WEB\",\"clientVersion\":\"%1\"}},\"continuation\":\"%2\"}").arg(
+                            recommendedData->clientVersion, recommendedData->ctoken).toUtf8();
+
+    QNetworkReply *reply = ApplicationUI::networkManager->post(request, data);
     QObject::connect(reply, SIGNAL(finished()), this, SLOT(onRecommendedNextBatchFinished()));
 }
 
@@ -343,6 +355,7 @@ void YoutubeClient::onChannelFinished()
     QString json = getJson(response);
 
     ChannelPageData channelData;
+    channelData.apiKey = getApiKey(response);
 
     if (reply->property("originalChannelId").toString() != "") {
         channelData.channelId = reply->property("originalChannelId").toString();
@@ -402,8 +415,12 @@ void YoutubeClient::onRecommendedFinished()
     QString json = getJson(response);
 
     RecommendedData recommendedData;
+    recommendedData.apiKey = getApiKey(response);
+
     RecommendedPageParser::parse(&recommendedData, &json);
     emit recommendedDataReceived(recommendedData);
+
+    qDebug() << recommendedData.apiKey << recommendedData.ctoken;
 
     reply->deleteLater();
 }
@@ -476,4 +493,16 @@ QString YoutubeClient::getJson(QString response)
     }
 
     return json;
+}
+
+QString YoutubeClient::getApiKey(QString response)
+{
+    QString innertubeKey = "\"INNERTUBE_API_KEY\":\"";
+    int i = response.indexOf(innertubeKey);
+    if (i < 0) {
+        return "";
+    }
+    int j = response.indexOf("\"", i + innertubeKey.length());
+
+    return response.mid(i + innertubeKey.length(), j - i - innertubeKey.length());
 }

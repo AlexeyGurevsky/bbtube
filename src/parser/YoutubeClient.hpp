@@ -55,6 +55,7 @@ private:
     void parse(QString videoId);
     QNetworkRequest prepareRequest(QString url);
     QString getJson(QString response);
+    QString getApiKey(QString response);
     void onGetBaseJsFinished(QNetworkReply *reply);
 };
 

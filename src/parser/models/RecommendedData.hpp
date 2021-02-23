@@ -9,6 +9,7 @@ public:
     QString clientVersion;
     QList<SingleVideoMetadata> videos;
     QString ctoken;
+    QString apiKey;
 };
 
 #endif /* RECOMMENDEDDATA_HPP_ */

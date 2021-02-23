@@ -40,45 +40,54 @@ void RecommendedPageParser::parse(RecommendedData *recommendedData, QString *jso
     QVariantList videosList = gridRendererMap["contents"].toList();
 
     for (int i = 0; i < videosList.count(); i++) {
-        QVariantMap videoMap =
-                videosList[i].toMap()["richItemRenderer"].toMap()["content"].toMap()["videoRenderer"].toMap();
-        if (!videoMap.contains("videoId")) {
-            continue;
+        QVariantMap item = videosList[i].toMap();
+
+        if (item.contains("richItemRenderer")) {
+            QVariantMap videoMap =
+                    item["richItemRenderer"].toMap()["content"].toMap()["videoRenderer"].toMap();
+            if (!videoMap.contains("videoId")) {
+                continue;
+            }
+
+            SingleVideoMetadata video = ItemRendererParser::getVideo(&videoMap);
+
+            recommendedData->videos.append(video);
+        } else if (item.contains("continuationItemRenderer")) {
+            recommendedData->ctoken =
+                    item["continuationItemRenderer"].toMap()["continuationEndpoint"].toMap()["continuationCommand"].toMap()["token"].toString();
         }
-
-        SingleVideoMetadata video = ItemRendererParser::getVideo(&videoMap);
-
-        recommendedData->videos.append(video);
-    }
-
-    if (gridRendererMap.contains("continuations")) {
-        recommendedData->ctoken =
-                gridRendererMap["continuations"].toList()[0].toMap()["nextContinuationData"].toMap()["continuation"].toString();
     }
 }
 
 void RecommendedPageParser::parseNextBatch(RecommendedData *recommendedData, QString *json)
 {
     bb::data::JsonDataAccess jda;
-    QVariantMap map = jda.loadFromBuffer(*json).toList()[1].toMap();
-    QVariantMap gridMap =
-            map["response"].toMap()["continuationContents"].toMap()["richGridContinuation"].toMap();
-    QVariantList videosList = gridMap["contents"].toList();
+    QVariantList receivedActions =
+            jda.loadFromBuffer(*json).toMap()["onResponseReceivedActions"].toList();
 
-    if (gridMap.contains("continuations")) {
-        recommendedData->ctoken =
-                gridMap["continuations"].toList()[0].toMap()["nextContinuationData"].toMap()["continuation"].toString();
+    if (receivedActions.count() == 0) {
+        return;
     }
 
+    QVariantList videosList =
+            receivedActions[0].toMap()["appendContinuationItemsAction"].toMap()["continuationItems"].toList();
+
     for (int i = 0; i < videosList.count(); i++) {
-        QVariantMap videoMap =
-                videosList[i].toMap()["richItemRenderer"].toMap()["content"].toMap()["videoRenderer"].toMap();
+        QVariantMap item = videosList[i].toMap();
 
-        if (!videoMap.contains("videoId")) {
-            continue;
+        if (item.contains("richItemRenderer")) {
+            QVariantMap videoMap =
+                    item["richItemRenderer"].toMap()["content"].toMap()["videoRenderer"].toMap();
+            if (!videoMap.contains("videoId")) {
+                continue;
+            }
+
+            SingleVideoMetadata video = ItemRendererParser::getVideo(&videoMap);
+
+            recommendedData->videos.append(video);
+        } else if (item.contains("continuationItemRenderer")) {
+            recommendedData->ctoken =
+                    item["continuationItemRenderer"].toMap()["continuationEndpoint"].toMap()["continuationCommand"].toMap()["token"].toString();
         }
-
-        SingleVideoMetadata video = ItemRendererParser::getVideo(&videoMap);
-        recommendedData->videos.append(video);
     }
 }
