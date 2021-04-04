@@ -21,6 +21,8 @@
 #include <QtNetwork/QNetworkRequest>
 #include <QtNetwork/QNetworkReply>
 #include <QtNetwork/QNetworkCookie>
+#include <QtNetwork/QNetworkCookieJar>
+#include <QtCore/QDate>
 
 QMap<QString, ScriptData> YoutubeClient::cachedScripts;
 
@@ -114,7 +116,6 @@ void YoutubeClient::channel(QString channelId, QString originalChannelId)
 
 void YoutubeClient::channelVideosNextBatch(ChannelPageData *channelData)
 {
-    qDebug() << channelData->apiKey << channelData->clientVersion << channelData->ctoken;
     QNetworkRequest request = prepareRequest(
             "https://www.youtube.com/youtubei/v1/browse?key=" + channelData->apiKey);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -140,7 +141,6 @@ void YoutubeClient::recommended()
 
 void YoutubeClient::recommendedNextBatch(RecommendedData *recommendedData)
 {
-    qDebug() << recommendedData->apiKey << recommendedData->clientVersion << recommendedData->ctoken;
     QNetworkRequest request = prepareRequest(
             "https://www.youtube.com/youtubei/v1/browse?key=" + recommendedData->apiKey);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
@@ -150,7 +150,7 @@ void YoutubeClient::recommendedNextBatch(RecommendedData *recommendedData)
     QByteArray data =
             QString(
                     "{\"context\":{\"client\":{\"clientName\":\"WEB\",\"clientVersion\":\"%1\"}},\"continuation\":\"%2\"}").arg(
-                            recommendedData->clientVersion, recommendedData->ctoken).toUtf8();
+                    recommendedData->clientVersion, recommendedData->ctoken).toUtf8();
 
     QNetworkReply *reply = ApplicationUI::networkManager->post(request, data);
     QObject::connect(reply, SIGNAL(finished()), this, SLOT(onRecommendedNextBatchFinished()));
@@ -420,8 +420,6 @@ void YoutubeClient::onRecommendedFinished()
     RecommendedPageParser::parse(&recommendedData, &json);
     emit recommendedDataReceived(recommendedData);
 
-    qDebug() << recommendedData.apiKey << recommendedData.ctoken;
-
     reply->deleteLater();
 }
 
@@ -468,6 +466,26 @@ void YoutubeClient::onTrendingFinished()
 QNetworkRequest YoutubeClient::prepareRequest(QString url)
 {
     QNetworkRequest request(url);
+    QNetworkCookieJar *cookieJar = ApplicationUI::networkManager->cookieJar();
+    QList<QNetworkCookie> cookies = cookieJar->cookiesForUrl(url);
+    bool consentExists = false;
+
+    for (int i = 0; i < cookies.count(); i++) {
+        if (QString::fromUtf8(cookies[i].name()) == "CONSENT") {
+            consentExists = true;
+        }
+    }
+
+    if (!consentExists) {
+        QList<QNetworkCookie> newCookies;
+
+        newCookies.append(
+                QNetworkCookie("CONSENT",
+                        QString("YES+cb.%1").arg(QDate::currentDate().toString("yyyyMMdd")).toUtf8()));
+
+        cookieJar->setCookiesFromUrl(newCookies, url);
+    }
+
     request.setRawHeader("User-Agent",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:74.0) Gecko/20100101 Firefox/74.0");
 
