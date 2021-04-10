@@ -213,25 +213,28 @@ void YoutubeClient::onGetHtmlFinished()
             json = response.mid(startOfConfig, endOfConfig + 1 - startOfConfig).trimmed();
 
             StorageParser::parseFromJson(&storageData, &json);
-        } else {
-            QEventLoop loop;
-            QNetworkRequest getVideoInfoRequest(
-                    "https://www.youtube-nocookie.com/get_video_info?video_id="
-                            + videoMetadata.video.videoId);
-            QNetworkReply *getVideoInfoReply = ApplicationUI::networkManager->get(
-                    getVideoInfoRequest);
-            QObject::connect(getVideoInfoReply, SIGNAL(finished()), &loop, SLOT(quit()));
-            loop.exec();
+        }
+    }
 
-            QString getVideoInfoResponse = QString(getVideoInfoReply->readAll());
-            QStringList split = getVideoInfoResponse.split('&');
-            for (int i = 0; i < split.length(); i++) {
-                if (split[i].startsWith("player_response=")) {
-                    json = QUrl::fromPercentEncoding(
-                            split[i].mid(QString("player_response=").length()).toUtf8());
+    if (storageData.instances.count() == 0) {
+        QEventLoop loop;
+        QNetworkRequest getVideoInfoRequest(
+                "https://www.youtube-nocookie.com/get_video_info?video_id="
+                        + videoMetadata.video.videoId);
+        QNetworkReply *getVideoInfoReply = ApplicationUI::networkManager->get(getVideoInfoRequest);
+        QObject::connect(getVideoInfoReply, SIGNAL(finished()), &loop, SLOT(quit()));
+        loop.exec();
 
-                    StorageParser::parseFromJson(&storageData, &json);
-                }
+        QString getVideoInfoResponse = QString(getVideoInfoReply->readAll());
+        QStringList split = getVideoInfoResponse.split('&');
+        for (int i = 0; i < split.length(); i++) {
+            if (split[i].startsWith("player_response=")) {
+                json = QUrl::fromPercentEncoding(
+                        split[i].mid(QString("player_response=").length()).toUtf8());
+
+                StorageParser::parseFromJson(&storageData, &json);
+
+                break;
             }
         }
     }
@@ -467,7 +470,7 @@ QNetworkRequest YoutubeClient::prepareRequest(QString url)
 {
     QNetworkRequest request(url);
     QNetworkCookieJar *cookieJar = ApplicationUI::networkManager->cookieJar();
-    QList<QNetworkCookie> cookies = cookieJar->cookiesForUrl(url);
+    QList < QNetworkCookie > cookies = cookieJar->cookiesForUrl(url);
     bool consentExists = false;
 
     for (int i = 0; i < cookies.count(); i++) {
@@ -477,7 +480,7 @@ QNetworkRequest YoutubeClient::prepareRequest(QString url)
     }
 
     if (!consentExists) {
-        QList<QNetworkCookie> newCookies;
+        QList < QNetworkCookie > newCookies;
 
         newCookies.append(
                 QNetworkCookie("CONSENT",
