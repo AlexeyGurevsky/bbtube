@@ -97,7 +97,7 @@ void YoutubeClient::suggestions(QString text)
     }
 
     QNetworkRequest request = prepareRequest(
-            "https://clients1.google.com/complete/search?client=youtube&ds=v&q=" + text);
+            "https://suggestqueries-clients6.youtube.com/complete/search?client=youtube&ds=yt&q=" + text);
     QNetworkReply *reply = ApplicationUI::networkManager->get(request);
     QObject::connect(reply, SIGNAL(finished()), this, SLOT(onSuggestionsFinished()));
 }

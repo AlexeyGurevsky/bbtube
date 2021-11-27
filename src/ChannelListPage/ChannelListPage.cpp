@@ -371,18 +371,12 @@ void ChannelListPage::onShareActionItemClick()
 
     if (file.open(QIODevice::WriteOnly)) {
         QTextStream stream(&file);
-        stream << "<opml version=\"1.1\"><body>";
-        stream << "<outline text=\"YouTube Subscriptions\" title=\"YouTube Subscriptions\">";
+        stream << "Channel Id,Channel Url,Channel Title"<<endl;
 
         for (int i = 0; i < dataModel->size(); i++) {
             ChannelListItemModel *item = dataModel->value(i);
-            stream
-                    << QString(
-                            "<outline text=\"%1\" title=\"%1\" type=\"rss\" xmlUrl=\"https://www.youtube.com/feeds/videos.xml?channel_id=%2\" />").arg(
-                            item->title, item->channelId);
+            stream<<QString("%1,http://www.youtube.com/channel/%1,%2").arg(item->channelId, item->title)<<endl;
         }
-
-        stream << "</outline></body></opml>";
     }
 }
 

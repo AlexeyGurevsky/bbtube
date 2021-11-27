@@ -19,6 +19,8 @@
 #include <bb/system/InvokeManager>
 #include <bb/system/InvokeTargetReply>
 #include <bb/data/JsonDataAccess>
+#include <QStringList>
+#include <QLatin1Char>
 
 ImportChannelsSheet::ImportChannelsSheet() :
         BaseSheet()
@@ -41,7 +43,7 @@ ImportChannelsSheet::ImportChannelsSheet() :
                     true).topMargin(0));
     container->add(
             Label::create().text(
-                    "2. Find subscriptions.json, change its extension to .txt and transfer subscriptions.txt to the phone").multiline(
+                    "2. Find subscriptions.csv, change its extension to .txt and transfer subscriptions.txt to the phone").multiline(
                     true).topMargin(0));
     container->add(Label::create().text("3. Open the file and copy its contents").topMargin(0));
     container->add(Label::create().text("4. Paste the contents into the area below").topMargin(0));
@@ -91,24 +93,30 @@ void ImportChannelsSheet::onImportActionItemClick()
         overlay->setVisible(true);
         importActionItem->setEnabled(false);
 
-        bb::data::JsonDataAccess jda;
-        QVariantList list = jda.loadFromBuffer(textArea->text()).toList();
+        QStringList linesList = textArea->text().split(QRegExp("[\r\n]"),QString::SkipEmptyParts);
 
-        if (list.count() > 0) {
+        if (linesList.size() > 1)
+        {
             DbHelper::transaction();
 
-            for (int i = 0; i < list.count(); i++) {
-                QVariantMap channelMap = list[i].toMap()["snippet"].toMap();
+            for (int i = 1; i < linesList.size(); i++) {
+                QString line = linesList.at(i);
+                QStringList parts = line.split(QLatin1Char(','), QString::SkipEmptyParts);
+
+                if (parts.size() < 3) {
+                    continue;
+                }
+
                 ChannelListItemModel channel;
 
-                channel.channelId = channelMap["resourceId"].toMap()["channelId"].toString();
+                channel.channelId = parts.at(0);
                 channel.dateAdded = QDateTime::currentDateTimeUtc().toTime_t();
                 channel.dateLastActivity = 0;
                 channel.dateLastVisited = 0;
                 channel.lastVideoId = "";
                 channel.lastVideoTitle = "";
-                channel.thumbnailUrl = channelMap["thumbnails"].toMap()["default"].toMap()["url"].toString();
-                channel.title = channelMap["title"].toString();
+                channel.thumbnailUrl = "";
+                channel.title = parts.at(2);
 
                 if (!ChannelListProxy::getInstance()->contains(channel.channelId)) {
                     DbHelper::createChannel(&channel);
